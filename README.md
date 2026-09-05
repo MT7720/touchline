@@ -22,7 +22,7 @@ Painel com aproveitamento, forma recente, saldo, próximos jogos e líderes; his
 
 Base no importador do projeto `D:/AFP SITE/afp-gaming-source-completo/api/import-matches.js`. Solicita liga, amistosos e playoffs, além de informações, elenco, carreira, acumulados e temporadas. Endpoints adicionais são candidatos sem contrato público estável e falhas são apresentadas individualmente. O JSON original é preservado, ausências são `null` e correções ficam separadas. Chave das partidas: equipe + edição + plataforma + ID. Salvamento idempotente.
 
-**Pendente externo:** o usuário confirmou os nomes, mas os IDs EA não foram identificados. A busca EA retornou HTTP 403 no ambiente de pesquisa. A plataforma padrão é `common-gen5`, conforme AFP, e pode ser alterada. Não reutilizar `166966` (ID da AFP). A busca ou preenchimento do ID está em Integrações. Não há garantia de histórico anterior à primeira captura nem de coleta EA em tempo real.
+**Pendente externo:** o usuário confirmou os nomes, mas foi identificado o ID histórico EA da DTR, **4504**, em uma partida pública da AFP. O ID da Vortex não foi identificado. A busca EA retornou HTTP 403 tanto no ambiente de pesquisa quanto em produção. O ID DTR foi configurado, mas a coleta EA depende de o serviço voltar a permitir consultas. Após um HTTP 403, o coletor aguarda uma hora antes de tentar a EA novamente, mantendo a GlobalPro ativa. A plataforma padrão é `common-gen5`, conforme AFP, e pode ser alterada. Não reutilizar `166966` (ID da AFP). A busca ou preenchimento do ID está em Integrações. Não há garantia de histórico anterior à primeira captura nem de coleta EA em tempo real.
 
 ### GlobalPro
 
