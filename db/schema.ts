@@ -1,0 +1,11 @@
+import {sqliteTable,text,integer,primaryKey,index} from 'drizzle-orm/sqlite-core';
+export const settings=sqliteTable('settings',{team:text().primaryKey(),data:text().notNull()});
+export const sessions=sqliteTable('sessions',{token:text().primaryKey(),team:text().notNull(),role:text().notNull(),version:integer().notNull(),expires:integer().notNull()},t=>[index('idx_sessions_team').on(t.team,t.expires)]);
+export const attempts=sqliteTable('attempts',{id:text().primaryKey(),count:integer().notNull(),until:integer().notNull()});
+export const matches=sqliteTable('matches',{team:text().notNull(),id:text().notNull(),data:text().notNull(),override:text(),playedAt:text().notNull(),importedAt:text().notNull()},t=>[primaryKey({columns:[t.team,t.id]}),index('idx_matches_team_date').on(t.team,t.playedAt)]);
+export const records=sqliteTable('records',{id:text().notNull(),team:text().notNull(),kind:text().notNull(),data:text().notNull(),createdAt:text().notNull()},t=>[primaryKey({columns:[t.team,t.id]}),index('idx_records_team_kind').on(t.team,t.kind)]);
+export const snapshots=sqliteTable('snapshots',{team:text().notNull(),source:text().notNull(),data:text().notNull(),at:text().notNull()},t=>[primaryKey({columns:[t.team,t.source]})]);
+export const syncRuns=sqliteTable('sync_runs',{id:text().primaryKey(),team:text().notNull(),at:text().notNull(),status:text().notNull(),detail:text().notNull()},t=>[index('idx_sync_team_date').on(t.team,t.at)]);
+export const syncLocks=sqliteTable('sync_locks',{team:text().primaryKey(),until:integer().notNull()});
+export const audit=sqliteTable('audit',{id:text().primaryKey(),team:text().notNull(),action:text().notNull(),detail:text().notNull(),at:text().notNull()},t=>[index('idx_audit_team_date').on(t.team,t.at)]);
+export const votes=sqliteTable('votes',{team:text().notNull(),pollId:text().notNull(),voter:text().notNull(),choice:text().notNull()},t=>[primaryKey({columns:[t.team,t.pollId,t.voter]})]);

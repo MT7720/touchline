@@ -1,0 +1,4 @@
+import {readFileSync} from 'node:fs';
+const secrets=JSON.parse(readFileSync(new URL('../.local-access.json',import.meta.url),'utf8'));
+const base='http://localhost:3000';
+for(const team of ['dtr','vortex']){const auth=await fetch(`${base}/api/${team}/login`,{method:'POST',headers:{Origin:base,'Content-Type':'application/json'},body:JSON.stringify({password:secrets[team.toUpperCase()+'_ADMIN']})});const cookie=auth.headers.get('set-cookie')?.split(';')[0];const r=await fetch(`${base}/api/${team}/sync`,{method:'POST',headers:{Origin:base,'Content-Type':'application/json',Cookie:cookie},body:'{}'});console.log(team,r.status,await r.text());const d=await(await fetch(`${base}/api/${team}/data`,{headers:{Cookie:cookie}})).json();console.log({team,matches:d.matches?.length,sources:d.snapshots?.map(s=>({source:s.source,roster:s.data.roster?.length}))})}
