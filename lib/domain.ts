@@ -1,4 +1,4 @@
-export const TEAMS = {dtr:{name:'DTR Esports',short:'DTR',accent:'#c3ef63',logo:'/teams/dtr.png'},vortex:{name:'Vortex EC',short:'VTX',accent:'#89b4ff',logo:'/teams/vortex.png'}};
+export const TEAMS = {dtr:{name:'DTR Esports',short:'DTR',accent:'#f5f5f2',logo:'/teams/dtr.png'},vortex:{name:'Vortex EC',short:'VTX',accent:'#ff9d2e',logo:'/teams/vortex.png'}};
 export type TeamId = keyof typeof TEAMS;
 export const isTeam=(value:string):value is TeamId=>Object.hasOwn(TEAMS,value);
 export type Match = {id:string;playedAt:string;opponent:string;goalsFor:number;goalsAgainst:number;type:string;competition?:string;video?:string;excluded?:boolean;wo?:boolean;players:PlayerLine[];raw?:unknown};
