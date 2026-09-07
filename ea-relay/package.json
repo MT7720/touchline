@@ -1,0 +1,6 @@
+{
+  "name": "ea-relay",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Vercel Edge proxy para a API do EA Sports FC Pro Clubs — contorna bloqueio de datacenter"
+}

@@ -1,0 +1,128 @@
+# Coleta automática EA a cada 10 minutos
+# O runner do GitHub Actions busca dados da EA e envia pro Touchline
+name: Coleta EA Automática
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'
+  workflow_dispatch: {}
+
+jobs:
+  collect-ea:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Coletar e enviar dados EA
+        env:
+          TOUCHLINE_ORIGIN: ${{ secrets.TOUCHLINE_ORIGIN }}
+          COLLECTOR_KEY: ${{ secrets.COLLECTOR_KEY }}
+        run: |
+          cat << 'SCRIPT' > /tmp/collect.mjs
+          const H = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/141.0.0.0 Safari/537.36',
+            'Accept': 'application/json, text/plain, */*',
+            'Accept-Language': 'en-US,en;q=0.9,pt-BR;q=0.8,pt;q=0.7',
+            'Origin': 'https://www.ea.com',
+            'Referer': 'https://www.ea.com/',
+            'Sec-Fetch-Dest': 'empty',
+            'Sec-Fetch-Mode': 'cors',
+            'Sec-Fetch-Site': 'same-site',
+            'Sec-Ch-Ua': '"Google Chrome";v="141", "Not?A_Brand";v="8", "Chromium";v="141"',
+            'Sec-Ch-Ua-Mobile': '?0',
+            'Sec-Ch-Ua-Platform': '"Windows"',
+          };
+
+          const ORIGIN = process.env.TOUCHLINE_ORIGIN;
+          const KEY = process.env.COLLECTOR_KEY;
+
+          const TEAMS = {
+            dtr:    { clubId: '9212', platform: 'common-gen5' },
+            vortex: { clubId: '4504', platform: 'common-gen5' },
+          };
+
+          const MATCH_TYPES = ['leagueMatch', 'friendlyMatch', 'playoffMatch'];
+          const SNAPSHOT_PATHS = ['clubs/info', 'members/stats', 'members/career/stats', 'clubs/overallStats', 'clubs/seasonalStats'];
+
+          const wait = ms => new Promise(r => setTimeout(r, ms));
+
+          async function fetchEA(path, params) {
+            const url = new URL(`https://proclubs.ea.com/api/fc/${path}`);
+            for (const [k, v] of Object.entries(params)) url.searchParams.set(k, v);
+            const r = await fetch(url, { headers: H, signal: AbortSignal.timeout(20000) });
+            if (!r.ok) throw new Error(`EA HTTP ${r.status}`);
+            return r.json();
+          }
+
+          async function collectTeam(team, cfg) {
+            const data = { matches: {}, snapshots: {} };
+            let ok = 0, fail = 0;
+
+            for (const type of MATCH_TYPES) {
+              try {
+                const raw = await fetchEA('clubs/matches', { platform: cfg.platform, clubIds: cfg.clubId, matchType: type, maxResultCount: '20' });
+                if (Array.isArray(raw)) { data.matches[type] = raw; ok++; }
+              } catch (e) { console.log(`  ${team} ${type}: ${e.message}`); fail++; }
+              await wait(1500);
+            }
+
+            for (const path of SNAPSHOT_PATHS) {
+              try {
+                const raw = await fetchEA(path, { platform: cfg.platform, clubIds: cfg.clubId, clubId: cfg.clubId });
+                data.snapshots[path] = raw; ok++;
+              } catch (e) { console.log(`  ${team} ${path}: ${e.message}`); fail++; }
+              await wait(1500);
+            }
+
+            return { data, ok, fail };
+          }
+
+          console.log(`=== Coleta EA ${new Date().toISOString()} ===\n`);
+
+          // Teste rápido
+          try {
+            const test = await fetchEA('clubs/info', { platform: 'common-gen5', clubIds: '9212' });
+            console.log('EA acessível ✓\n');
+          } catch (e) {
+            console.log(`EA inacessível: ${e.message}`);
+            console.log('Disparando sync normal (só GlobalPro)...');
+            const r = await fetch(`${ORIGIN}/api/jobs`, { method: 'POST', headers: { Authorization: `Bearer ${KEY}` }, signal: AbortSignal.timeout(210000) });
+            const body = await r.json();
+            console.log(JSON.stringify(body, null, 2));
+            process.exit(0);
+          }
+
+          await wait(2000);
+
+          // Coleta completa
+          const pushData = {};
+          for (const [team, cfg] of Object.entries(TEAMS)) {
+            console.log(`Coletando ${team} (clubId: ${cfg.clubId})...`);
+            const { data, ok, fail } = await collectTeam(team, cfg);
+            pushData[team] = data;
+            const matchCount = Object.values(data.matches).reduce((n, a) => n + a.length, 0);
+            console.log(`  ${ok} fontes OK, ${fail} falhas, ${matchCount} partidas\n`);
+            await wait(3000);
+          }
+
+          // Envia pro Touchline
+          console.log('Enviando dados pro Touchline...');
+          const response = await fetch(`${ORIGIN}/api/jobs`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${KEY}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ push: true, data: pushData }),
+            signal: AbortSignal.timeout(60000),
+          });
+
+          const result = await response.json();
+          console.log(`HTTP ${response.status}`);
+          console.log(JSON.stringify(result, null, 2));
+
+          // Também dispara sync normal pra pegar GlobalPro
+          console.log('\nDisparando sync GlobalPro...');
+          await wait(2000);
+          const syncResp = await fetch(`${ORIGIN}/api/jobs`, { method: 'POST', headers: { Authorization: `Bearer ${KEY}` }, signal: AbortSignal.timeout(210000) });
+          const syncResult = await syncResp.json();
+          console.log(JSON.stringify(syncResult, null, 2));
+          SCRIPT
+
+          node /tmp/collect.mjs
